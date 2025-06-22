@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Creative Memory Match Game - 20 Levels</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500&display=swap');
+  body {
+    font-family: 'Quicksand', sans-serif;
+    margin: 0;
+    padding: 40px 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+    transition: background 0.6s ease;
+    user-select: none;
+  }
+  h1 {
+    color: #fff;
+    margin-bottom: 10px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  #level-container {
+    font-size: 1.5rem;
+    color: #fff;
+    margin-bottom: 10px;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+  #progress-bar {
+    width: 320px;
+    height: 18px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 20px;
+    margin-bottom: 25px;
+    overflow: hidden;
+    box-shadow: 0 0 6px rgba(0,0,0,0.2);
+  }
+  #progress-fill {
+    height: 100%;
+    width: 0%;
+    background: #ffd700;
+    border-radius: 20px;
+    transition: width 0.5s ease;
+    box-shadow: 0 0 12px #ffd700;
+  }
+  #game-board {
+    display: grid;
+    grid-gap: 14px;
+    justify-content: center;
+    user-select: none;
+  }
+  /* dynamic grid columns will be set by JS */
+  
+  .card {
+    width: 80px;
+    height: 80px;
+    perspective: 900px;
+    cursor: pointer;
+    position: relative;
+  }
+  .card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 15px;
+    box-shadow: 0 8px 15px rgba(0,0,0,0.3);
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+  }
+  .card.flip .card-inner {
+    animation: flipBounce 0.5s forwards;
+    transform: rotateY(180deg);
+  }
+  @keyframes flipBounce {
+    0% { transform: rotateY(0deg); }
+    60% { transform: rotateY(190deg); }
+    80% { transform: rotateY(170deg); }
+    100% { transform: rotateY(180deg); }
+  }
+  .card-front, .card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 15px;
+    backface-visibility: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 42px;
+    user-select: none;
+  }
+  .card-front {
+    background: #2980b9;
+    color: #ecf0f1;
+    box-shadow: inset 0 0 25px rgba(255,255,255,0.15);
+  }
+  .card-back {
+    background: #ecf0f1;
+    color: #2980b9;
+    transform: rotateY(180deg);
+    box-shadow: inset 0 0 25px rgba(41, 128, 185, 0.3);
+  }
+  .card.matched .card-inner {
+    animation: matchedGlow 1.3s ease-in-out infinite alternate;
+    cursor: default;
+  }
+  @keyframes matchedGlow {
+    0% { box-shadow: 0 0 10px 4px #ffd700; }
+    100% { box-shadow: 0 0 30px 8px #ffea00; }
+  }
+  #message {
+    margin-top: 25px;
+    color: #fff;
+    font-size: 1.3rem;
+    font-weight: 600;
+    min-height: 30px;
+    text-shadow: 0 0 5px rgba(0,0,0,0.5);
+  }
+  #nextLevelBtn {
+    margin-top: 25px;
+    padding: 14px 44px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    background: #ffd700;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    box-shadow: 0 6px 18px #ffe600;
+    color: #444;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+  }
+  #nextLevelBtn:hover:not(:disabled) {
+    background: #fff14f;
+    box-shadow: 0 8px 24px #fff95c;
+  }
+  #nextLevelBtn:disabled {
+    background: #999;
+    cursor: not-allowed;
+    box-shadow: none;
+    color: #ddd;
+  }
+  #resetBtn {
+    margin-top: 12px;
+    padding: 10px 30px;
+    font-weight: 600;
+    font-size: 1rem;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px #3498dbaa;
+    transition: background 0.3s ease;
+  }
+  #resetBtn:hover {
+    background: #2c81c7;
+  }
+
+  /* Confetti container */
+  #confetti-container {
+    pointer-events: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: visible;
+    z-index: 9999;
+  }
+  .confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: #ffd700;
+    opacity: 0.9;
+    border-radius: 3px;
+    animation-name: confetti-fall, confetti-spin;
+    animation-timing-function: linear, ease-in-out;
+    animation-iteration-count: infinite, infinite;
+    transform-origin: center;
+  }
+  @keyframes confetti-fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+  }
+  @keyframes confetti-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+</style>
+</head>
+<body>
+
+<h1>Creative Memory Match</h1>
+<div id="level-container">Level: 1</div>
+<div id="progress-bar"><div id="progress-fill"></div></div>
+<div id="game-board"></div>
+<div id="message">Click two cards to find a match!</div>
+<button id="nextLevelBtn" disabled>Next Level</button>
+<button id="resetBtn">Restart Game</button>
+<div id="confetti-container"></div>
+
+<script>
+  const gameBoard = document.getElementById('game-board');
+  const message = document.getElementById('message');
+  const levelContainer = document.getElementById('level-container');
+  const nextLevelBtn = document.getElementById('nextLevelBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const progressFill = document.getElementById('progress-fill');
+  const confettiContainer = document.getElementById('confetti-container');
+
+  // Diverse emoji pools for generating pairs
+  const emojiPools = [
+    ['🍎','🍌','🍇','🍉','🍓','🍒','🥝','🍍','🍑','🍋'], // fruits
+    ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯'], // animals
+    ['⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸'], // sports
+    ['🌟','🔥','💧','🍀','🌈','❄️','☀️','🌙','⭐','⚡'], // symbols
+    ['🍕','🍔','🌭','🍟','🥪','🍣','🍰','🍩','🍪','🍫']  // food
+  ];
+
+  let level = 1;
+  const maxLevel = 20;
+
+  let cardValues = [];
+  let cardIds = [];
+  let matchedPairs = 0;
+  let lockBoard = false;
+
+  function shuffle(array) {
+    return array.sort(() => 0.5 - Math.random());
+  }
+
+  function getEmojisForLevel(level) {
+    // Calculate pairs needed: level + 1 pairs (minimum 2)
+    let pairsCount = level + 1;
+
+    // Cap pairs count at 50 to keep it playable (100 cards)
+    if(pairsCount > 50) pairsCount = 50;
+
+    // Collect emojis from pools cycling through them if needed
+    let emojis = [];
+    let poolIndex = 0;
+    while(emojis.length < pairsCount) {
+      emojis = emojis.concat(emojiPools[poolIndex].slice());
+      poolIndex = (poolIndex + 1) % emojiPools.length;
+    }
+    emojis = emojis.slice(0, pairsCount);
+    return emojis;
+  }
+
+  function createBoard() {
+    gameBoard.innerHTML = '';
+    cardValues = [];
+    cardIds = [];
+    matchedPairs = 0;
+    lockBoard = false;
+    message.textContent = 'Click two cards to find a match!';
+    levelContainer.textContent = `Level: ${level}`;
+    nextLevelBtn.disabled = true;
+
+    // Change background color gradient subtly by level
+    const hue = (level * 18) % 360;
+    document.body.style.background = `linear-gradient(135deg, hsl(${hue}, 70%, 75%) 0%, hsl(${(hue + 60) % 360}, 70%, 55%) 100%)`;
+
+    // Prepare card pairs emojis for current level
+    const pairsCount = level + 1;
+    const cardsForLevel = getEmojisForLevel(level);
+    const gameCards = shuffle([...cardsForLevel, ...cardsForLevel]);
+
+    // Calculate grid columns: aim for a square-ish shape
+    let columns = Math.ceil(Math.sqrt(gameCards.length));
+    gameBoard.style.gridTemplateColumns = `repeat(${columns}, 80px)`;
+
+    gameCards.forEach((item, index) => {
+      const card = document.createElement('div');
+      card.classList.add('card');
+      card.setAttribute('data-id', index);
+
+      card.innerHTML = `
+        <div class="card-inner">
+          <div class="card-front"></div>
+          <div class="card-back">${item}</div>
+        </div>
+      `;
+
+      card.addEventListener('click', flipCard);
+      gameBoard.appendChild(card);
+    });
+
+    updateProgressBar();
+  }
+
+  function flipCard() {
+    if(lockBoard) return;
+    if(this.classList.contains('flip') || this.classList.contains('matched')) return;
+
+    this.classList.add('flip');
+
+    const cardId = this.getAttribute('data-id');
+    const cardBack = this.querySelector('.card-back').textContent;
+
+    cardValues.push(cardBack);
+    cardIds.push(cardId);
+
+    if(cardValues.length === 2) {
+      checkForMatch();
+    }
+  }
+
+  function checkForMatch() {
+    lockBoard = true;
+
+    const [firstId, secondId] = cardIds;
+    const [firstVal, secondVal] = cardValues;
+
+    if(firstVal === secondVal) {
+      message.textContent = "You found a match! 🎉";
+      markMatched();
+      resetSelection();
+      lockBoard = false;
+
+      if(matchedPairs === (level + 1)) {
+        message.textContent = "🎊 Congratulations! You matched all pairs! 🎊";
+        nextLevelBtn.disabled = false;
+        showConfetti();
+      }
+    } else {
+      message.textContent = "Try again!";
+      setTimeout(() => {
+        unflipCards(firstId, secondId);
+        resetSelection();
+        lockBoard = false;
+      }, 1100);
+    }
+  }
+
+  function markMatched() {
+    cardIds.forEach(id => {
+      const card = document.querySelector(`.card[data-id='${id}']`);
+      card.classList.add('matched');
+      card.style.cursor = 'default';
+      card.removeEventListener('click', flipCard);
+    });
+    matchedPairs++;
+  }
+
+  function unflipCards(id1, id2) {
+    const card1 = document.querySelector(`.card[data-id='${id1}']`);
+    const card2 = document.querySelector(`.card[data-id='${id2}']`);
+    card1.classList.remove('flip');
+    card2.classList.remove('flip');
+  }
+
+  function resetSelection() {
+    cardValues = [];
+    cardIds = [];
+  }
+
+  function nextLevel() {
+    if(level < maxLevel) {
+      level++;
+      createBoard();
+      clearConfetti();
+    }
+    if(level === maxLevel) {
+      nextLevelBtn.disabled = true;
+      message.textContent += " You've reached the max level!";
+    }
+  }
+
+  function resetGame() {
+    level = 1;
+    createBoard();
+    nextLevelBtn.disabled = true;
+    clearConfetti();
+  }
+
+  function updateProgressBar() {
+    const percent = (level / maxLevel) * 100;
+    progressFill.style.width = percent + '%';
+  }
+
+  // Confetti animation
+  function showConfetti() {
+    clearConfetti();
+    const colors = ['#ffd700','#ffea00','#fff14f','#ffb700','#ffcc33'];
+    const count = 100;
+
+    for(let i=0; i<count; i++) {
+      const confetti = document.createElement('div');
+      confetti.classList.add('confetti');
+      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.left = Math.random() * window.innerWidth + 'px';
+      confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+      confetti.style.width = confetti.style.height = (Math.random() * 8 + 5) + 'px';
+      confetti.style.opacity = Math.random();
+      confetti.style.top = '-15px';
+      confetti.style.animationName = 'confetti-fall, confetti-spin';
+      confetti.style.animationIterationCount = '1, infinite';
+      confettiContainer.appendChild(confetti);
+
+      // Remove confetti after animation ends
+      confetti.addEventListener('animationend', () => {
+        confetti.remove();
+      });
+    }
+  }
+
+  function clearConfetti() {
+    confettiContainer.innerHTML = '';
+  }
+
+  // Events
+  nextLevelBtn.addEventListener('click', nextLevel);
+  resetBtn.addEventListener('click', resetGame);
+
+  // Initialize game on load
+  createBoard();
+</script>
+
+</body>
+</html>
